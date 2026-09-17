@@ -1,0 +1,13 @@
+# CMake 构建产物
+build/
+build-*/
+
+# clangd / IDE
+.cache/
+.vscode/
+.idea/
+
+# 编译产物
+*.exe
+*.o
+*.obj

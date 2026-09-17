@@ -1,0 +1,43 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  # 正常构建 + 跑全部测试
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build -j
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+
+  # ThreadSanitizer：验证"多线程同时读写 LRU 不崩溃"
+  # 只在 Linux 上跑，Windows 本地如需复现可用 MinGW g++ 加 -fsanitize=thread
+  tsan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure with ThreadSanitizer
+        run: >
+          cmake -S . -B build-tsan -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_CXX_FLAGS="-fsanitize=thread -g -O1"
+      - name: Build
+        run: cmake --build build-tsan -j
+      - name: Run tests under TSan
+        run: ctest --test-dir build-tsan --output-on-failure
+
+  # 格式检查：clang-format 不通过的代码直接挡在 CI 门外
+  format-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
+      - name: Check formatting
+        run: |
+          find include src tests benchmarks -name '*.h' -o -name '*.hpp' -o -name '*.cpp' \
+            | xargs clang-format --dry-run --Werror
